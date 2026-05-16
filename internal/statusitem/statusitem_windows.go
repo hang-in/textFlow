@@ -19,17 +19,19 @@ var (
 	smodshell32  = windows.NewLazySystemDLL("shell32.dll")
 	smodkernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
-	sprocGetModuleHandleW = smodkernel32.NewProc("GetModuleHandleW")
-	sprocRegisterClassExW = smoduser32.NewProc("RegisterClassExW")
-	sprocCreateWindowExW  = smoduser32.NewProc("CreateWindowExW")
-	sprocDestroyWindow    = smoduser32.NewProc("DestroyWindow")
-	sprocDefWindowProcW   = smoduser32.NewProc("DefWindowProcW")
-	sprocGetMessageW      = smoduser32.NewProc("GetMessageW")
-	sprocTranslateMessage = smoduser32.NewProc("TranslateMessage")
-	sprocDispatchMessageW = smoduser32.NewProc("DispatchMessageW")
-	sprocLoadIconW        = smoduser32.NewProc("LoadIconW")
-	sprocPostQuitMessage  = smoduser32.NewProc("PostQuitMessage")
-	sprocShellNotifyIconW = smodshell32.NewProc("Shell_NotifyIconW")
+	sprocGetModuleHandleW   = smodkernel32.NewProc("GetModuleHandleW")
+	sprocGetModuleFileNameW = smodkernel32.NewProc("GetModuleFileNameW")
+	sprocRegisterClassExW   = smoduser32.NewProc("RegisterClassExW")
+	sprocCreateWindowExW    = smoduser32.NewProc("CreateWindowExW")
+	sprocDestroyWindow      = smoduser32.NewProc("DestroyWindow")
+	sprocDefWindowProcW     = smoduser32.NewProc("DefWindowProcW")
+	sprocGetMessageW        = smoduser32.NewProc("GetMessageW")
+	sprocTranslateMessage   = smoduser32.NewProc("TranslateMessage")
+	sprocDispatchMessageW   = smoduser32.NewProc("DispatchMessageW")
+	sprocLoadIconW          = smoduser32.NewProc("LoadIconW")
+	sprocPostQuitMessage    = smoduser32.NewProc("PostQuitMessage")
+	sprocShellNotifyIconW   = smodshell32.NewProc("Shell_NotifyIconW")
+	sprocExtractIconExW     = smodshell32.NewProc("ExtractIconExW")
 )
 
 const (
@@ -151,7 +153,10 @@ func installAndRun(ctx context.Context) {
 	state.hwnd = hwnd
 	state.Unlock()
 
-	hIcon, _, _ := sprocLoadIconW.Call(0, uintptr(idiApplication))
+	hIcon := loadExeSmallIcon()
+	if hIcon == 0 {
+		hIcon, _, _ = sprocLoadIconW.Call(0, uintptr(idiApplication))
+	}
 
 	nid := notifyIconDataW{
 		cbSize:           uint32(unsafe.Sizeof(notifyIconDataW{})),
@@ -197,6 +202,23 @@ func wndProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 	}
 	ret, _, _ := sprocDefWindowProcW.Call(hwnd, uintptr(msg), wparam, lparam)
 	return ret
+}
+
+func loadExeSmallIcon() uintptr {
+	var buf [windows.MAX_PATH]uint16
+	n, _, _ := sprocGetModuleFileNameW.Call(0, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	if n == 0 {
+		return 0
+	}
+	var hSmall uintptr
+	sprocExtractIconExW.Call(
+		uintptr(unsafe.Pointer(&buf[0])),
+		0,
+		0,
+		uintptr(unsafe.Pointer(&hSmall)),
+		1,
+	)
+	return hSmall
 }
 
 func openMainWindow() {

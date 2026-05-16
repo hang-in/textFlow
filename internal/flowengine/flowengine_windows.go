@@ -647,14 +647,17 @@ func sendBackspaces(count int) {
 	if count <= 0 {
 		return
 	}
-	inputs := make([]input, 0, count*2)
+	// Let any in-flight IME composition (e.g. a buffered jamo on Microsoft
+	// Korean IME) settle before deletion, otherwise the first backspace can
+	// be absorbed by the composition layer instead of erasing a glyph.
+	time.Sleep(10 * time.Millisecond)
 	for i := 0; i < count; i++ {
-		inputs = append(inputs,
-			input{Type: inputKeyboard, Ki: keybdInput{Vk: vkBack}},
-			input{Type: inputKeyboard, Ki: keybdInput{Vk: vkBack, Flags: keyeventfKeyup}},
-		)
+		sendInputBatch([]input{
+			{Type: inputKeyboard, Ki: keybdInput{Vk: vkBack}},
+			{Type: inputKeyboard, Ki: keybdInput{Vk: vkBack, Flags: keyeventfKeyup}},
+		})
+		time.Sleep(3 * time.Millisecond)
 	}
-	sendInputBatch(inputs)
 }
 
 func sendKey(vk uint16) {
