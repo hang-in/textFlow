@@ -37,7 +37,31 @@ import {
     UpdateLabel,
     UpdateSnippet,
 } from "../wailsjs/go/main/App";
-import { EventsOn, Quit, WindowCenter, WindowHide, WindowSetSize } from "../wailsjs/runtime/runtime";
+import { Environment, EventsOn, Quit, WindowCenter, WindowHide, WindowSetSize } from "../wailsjs/runtime/runtime";
+
+type PlatformOS = 'darwin' | 'windows' | 'linux' | 'unknown';
+
+function detectFallbackOS(): PlatformOS {
+    if (typeof navigator === 'undefined') return 'unknown';
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('mac')) return 'darwin';
+    if (ua.includes('win')) return 'windows';
+    if (ua.includes('linux')) return 'linux';
+    return 'unknown';
+}
+
+let detectedOS: PlatformOS = detectFallbackOS();
+
+function getPlatformOS(): PlatformOS {
+    return detectedOS;
+}
+
+Environment().then((env: { platform?: string }) => {
+    const p = (env?.platform || '').toLowerCase();
+    if (p === 'darwin' || p === 'windows' || p === 'linux') {
+        detectedOS = p as PlatformOS;
+    }
+}).catch(() => {});
 
 type Snippet = {
     id: number;
@@ -288,9 +312,12 @@ function formatCapturedHotkey(event: KeyboardEvent): string {
     }
 
     const parts = [];
-    if (event.metaKey) parts.push('Cmd');
+    const os = getPlatformOS();
+    const metaLabel = os === 'darwin' ? 'Cmd' : 'Win';
+    const altLabel = os === 'darwin' ? 'Option' : 'Alt';
+    if (event.metaKey) parts.push(metaLabel);
     if (event.ctrlKey) parts.push('Ctrl');
-    if (event.altKey) parts.push('Option');
+    if (event.altKey) parts.push(altLabel);
     if (event.shiftKey) parts.push('Shift');
     parts.push(key);
 
@@ -958,13 +985,13 @@ function App() {
             model: settings?.model || '',
             apiKey: settings?.apiKey || '',
             temperature: Number(settings?.temperature ?? 0),
-            hotkey: settings?.hotkey || 'Cmd+Shift+Space',
+            hotkey: settings?.hotkey || (getPlatformOS() === 'darwin' ? 'Cmd+Shift+Space' : 'Win+Shift+Space'),
             useSelectedText: settings?.useSelectedText ?? true,
             useSelectedFile: !!settings?.useSelectedFile,
             replaceSelectedText: settings?.replaceSelectedText ?? true,
             pasteReplacementBundleIds: Array.isArray(settings?.pasteReplacementBundleIds)
                 ? settings.pasteReplacementBundleIds.filter((bundleId: unknown) => typeof bundleId === 'string')
-                : ['com.apple.iWork.Keynote', 'com.apple.iWork.Pages', 'com.apple.iWork.Numbers'],
+                : (getPlatformOS() === 'darwin' ? ['com.apple.iWork.Keynote', 'com.apple.iWork.Pages', 'com.apple.iWork.Numbers'] : []),
         };
     }
 
@@ -1653,7 +1680,7 @@ function App() {
                                                 </label>
                                                 <label>
                                                     {t('bundleId')}
-                                                    <input value={profile.appBundleId} onChange={(event) => updatePromptProfile(profile.id, { appBundleId: event.target.value })} placeholder="com.apple.Terminal" />
+                                                    <input value={profile.appBundleId} onChange={(event) => updatePromptProfile(profile.id, { appBundleId: event.target.value })} placeholder={getPlatformOS() === 'darwin' ? 'com.apple.Terminal' : 'notepad.exe'} />
                                                 </label>
                                                 <button type="button" onClick={() => browsePromptProfileApp(profile)}>{t('browse')}</button>
                                             </div>
@@ -1736,23 +1763,29 @@ function App() {
                             </div>
                             <div className="action-row">
                                 <button onClick={refreshPlatformStatus}>{t('refresh')}</button>
-                                <button
-                                    className={platformStatus?.accessibilityTrusted ? undefined : 'primary-button'}
-                                    onClick={requestAccessibilityPermission}
-                                >
-                                    {t('requestPermission')}
-                                </button>
+                                {getPlatformOS() === 'darwin' && (
+                                    <button
+                                        className={platformStatus?.accessibilityTrusted ? undefined : 'primary-button'}
+                                        onClick={requestAccessibilityPermission}
+                                    >
+                                        {t('requestPermission')}
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <div className="settings-list">
-                            <div className={platformStatus?.accessibilityTrusted ? 'settings-status success' : 'settings-status danger'}>
-                                <span>{t('accessibilityPermission')}</span>
-                                <strong>{platformStatus?.accessibilityTrusted ? t('granted') : t('required')}</strong>
-                            </div>
-                            <div>
-                                <span>{t('secureInput')}</span>
-                                <strong>{platformStatus?.secureInputActive ? t('active') : t('notDetected')}</strong>
-                            </div>
+                            {getPlatformOS() === 'darwin' && (
+                                <>
+                                    <div className={platformStatus?.accessibilityTrusted ? 'settings-status success' : 'settings-status danger'}>
+                                        <span>{t('accessibilityPermission')}</span>
+                                        <strong>{platformStatus?.accessibilityTrusted ? t('granted') : t('required')}</strong>
+                                    </div>
+                                    <div>
+                                        <span>{t('secureInput')}</span>
+                                        <strong>{platformStatus?.secureInputActive ? t('active') : t('notDetected')}</strong>
+                                    </div>
+                                </>
+                            )}
                             <div>
                                 <span>{t('aiActiveStatus')}</span>
                                 <strong>{aiSettings?.enabled ? t('enabled') : t('disabled')}</strong>
@@ -1956,7 +1989,7 @@ function App() {
                                                     ...aiSettings,
                                                     pasteReplacementBundleIds: parseBundleIdList(event.target.value),
                                                 })}
-                                                placeholder="com.apple.iWork.Keynote&#10;com.apple.iWork.Pages&#10;com.apple.iWork.Numbers"
+                                                placeholder={getPlatformOS() === 'darwin' ? 'com.apple.iWork.Keynote\ncom.apple.iWork.Pages\ncom.apple.iWork.Numbers' : 'notepad.exe\nwordpad.exe'}
                                                 rows={3}
                                             />
                                             <button type="button" onClick={browsePasteReplacementApp}>{t('browse')}</button>

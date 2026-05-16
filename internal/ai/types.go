@@ -8,14 +8,7 @@ const (
 
 	DefaultEndpoint    = "http://localhost:1234"
 	DefaultTemperature = 0.0
-	DefaultHotkey      = "Cmd+Shift+Space"
 )
-
-var DefaultPasteReplacementBundleIDs = []string{
-	"com.apple.iWork.Keynote",
-	"com.apple.iWork.Pages",
-	"com.apple.iWork.Numbers",
-}
 
 type Settings struct {
 	Enabled                   bool     `json:"enabled"`

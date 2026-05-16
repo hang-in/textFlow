@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -365,34 +364,20 @@ func (a *App) BrowseAIPromptApp() (platform.AppInfo, error) {
 	if a.ctx == nil {
 		return platform.AppInfo{}, errors.New("application context is not ready")
 	}
+	pickerOpts := platform.DefaultAppPickerOptions()
 	path, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
-		Title:                      "Choose an application",
-		DefaultDirectory:           "/Applications",
-		TreatPackagesAsDirectories: false,
+		Title:                      pickerOpts.Title,
+		DefaultDirectory:           pickerOpts.DefaultDirectory,
+		TreatPackagesAsDirectories: pickerOpts.TreatPackagesAsDirectories,
 	})
 	if err != nil {
 		return platform.AppInfo{}, err
 	}
-	path = enclosingAppBundlePath(path)
+	path = platform.NormalizePickedAppPath(path)
 	if path == "" {
 		return platform.AppInfo{}, nil
 	}
 	return platform.AppInfoFromBundlePath(path), nil
-}
-
-func enclosingAppBundlePath(path string) string {
-	path = strings.TrimSpace(path)
-	for path != "" && path != "." && path != string(filepath.Separator) {
-		if strings.EqualFold(filepath.Ext(path), ".app") {
-			return path
-		}
-		next := filepath.Dir(path)
-		if next == path {
-			break
-		}
-		path = next
-	}
-	return ""
 }
 
 func (a *App) GetAISettings() (ai.Settings, error) {

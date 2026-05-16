@@ -6,7 +6,6 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
 )
 
 //go:embed all:frontend/dist
@@ -16,8 +15,7 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	// Create application with options
-	err := wails.Run(&options.App{
+	opts := &options.App{
 		Title:             "DKST Text Flow",
 		Width:             900,
 		Height:            560,
@@ -32,19 +30,13 @@ func main() {
 		OnStartup:        app.startup,
 		OnDomReady:       app.domReady,
 		OnShutdown:       app.shutdown,
-		Mac: &mac.Options{
-			About: &mac.AboutInfo{
-				Title:   "DKST Text Flow",
-				Message: "Text expansion utility by DINKI'ssTyle.",
-			},
-			DisableZoom: true,
-		},
 		Bind: []interface{}{
 			app,
 		},
-	})
+	}
+	applyPlatformOptions(opts)
 
-	if err != nil {
+	if err := wails.Run(opts); err != nil {
 		println("Error:", err.Error())
 	}
 }

@@ -23,7 +23,7 @@ func Parse(value string) (Shortcut, error) {
 		switch token {
 		case "":
 			continue
-		case "cmd", "command", "meta":
+		case "cmd", "command", "meta", "win", "windows", "super":
 			shortcut.Command = true
 		case "ctrl", "control":
 			shortcut.Control = true
